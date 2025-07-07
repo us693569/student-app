@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Universal Science Academy - Student & Fee Management</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f4f4f4;
+    }
+    header {
+      background: #003366;
+      color: #fff;
+      padding: 10px 20px;
+      text-align: center;
+    }
+    .login, .dashboard, .section {
+      max-width: 900px;
+      margin: 20px auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+    .hidden { display: none; }
+    .btn {
+      padding: 10px 15px;
+      background: #003366;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+      margin: 5px;
+    }
+    input, select {
+      padding: 8px;
+      margin: 5px;
+      width: calc(100% - 20px);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    table, th, td {
+      border: 1px solid #ccc;
+    }
+    th, td {
+      padding: 8px;
+      text-align: center;
+    }
+    .paid { background-color: #c8e6c9; }
+    .unpaid { background-color: #ffcdd2; }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Universal Science Academy</h1>
+    <h2>Student & Fee Management System</h2>
+  </header>
+
+  <div class="login" id="loginPanel">
+    <h3>Admin Login</h3>
+    <input type="text" id="username" placeholder="Username" />
+    <input type="password" id="password" placeholder="Password" />
+    <button class="btn" onclick="login()">Login</button>
+    <p id="loginError" style="color:red;"></p>
+  </div>
+
+  <div class="dashboard hidden" id="dashboard">
+    <h3>Dashboard</h3>
+    <p><strong>Total Students:</strong> <span id="totalStudents">0</span></p>
+    <p><strong>Total Fees Collected:</strong> <span id="totalCollected">0</span></p>
+    <p><strong>Unpaid Fees:</strong> <span id="totalUnpaid">0</span></p>
+    <button class="btn" onclick="showSection('studentSection')">Manage Students</button>
+    <button class="btn" onclick="showSection('feeSection')">Manage Fees</button>
+    <button class="btn" onclick="logout()">Logout</button>
+  </div>
+
+  <div class="section hidden" id="studentSection">
+    <h3>Student Management</h3>
+    <input type="text" id="studentName" placeholder="Student Name" />
+    <input type="text" id="fatherName" placeholder="Father's Name" />
+    <input type="text" id="rollNo" placeholder="Roll Number" />
+    <input type="text" id="className" placeholder="Class" />
+    <input type="text" id="sectionName" placeholder="Section" />
+    <button class="btn" onclick="addStudent()">Add Student</button>
+    <table id="studentTable">
+      <thead>
+        <tr><th>Sr No</th><th>Name</th><th>Father</th><th>Roll</th><th>Class</th><th>Section</th><th>Delete</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <div class="section hidden" id="feeSection">
+    <h3>Fee Management</h3>
+    <select id="feeStudent"></select>
+    <select id="feeMonth">
+      <option>January</option><option>February</option><option>March</option><option>April</option><option>May</option><option>June</option><option>July</option><option>August</option><option>September</option><option>October</option><option>November</option><option>December</option>
+    </select>
+    <button class="btn" onclick="markPaid()">Mark as Paid</button>
+    <button class="btn" onclick="markUnpaid()">Mark as Unpaid</button>
+    <button class="btn" onclick="exportPDF()">Export PDF</button>
+    <button class="btn" onclick="exportExcel()">Export Excel</button>
+    <button class="btn" onclick="window.print()">Print</button>
+    <table id="feeTable">
+      <thead>
+        <tr><th>Student</th><th>Month</th><th>Status</th><th>Delete</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    let students = JSON.parse(localStorage.getItem("students")) || [];
+    let fees = JSON.parse(localStorage.getItem("fees")) || [];
+
+    function login() {
+      const u = document.getElementById("username").value;
+      const p = document.getElementById("password").value;
+      if (u === "ammar12" && p === "ammar123") {
+        document.getElementById("loginPanel").classList.add("hidden");
+        document.getElementById("dashboard").classList.remove("hidden");
+        loadDashboard();
+      } else {
+        document.getElementById("loginError").innerText = "Invalid credentials!";
+      }
+    }
+
+    function logout() {
+      location.reload();
+    }
+
+    function showSection(id) {
+      document.querySelectorAll(".section").forEach(sec => sec.classList.add("hidden"));
+      document.getElementById(id).classList.remove("hidden");
+      if (id === 'studentSection') loadStudents();
+      if (id === 'feeSection') loadFees();
+    }
+
+    function addStudent() {
+      const name = document.getElementById("studentName").value;
+      const father = document.getElementById("fatherName").value;
+      const roll = document.getElementById("rollNo").value;
+      const cls = document.getElementById("className").value;
+      const sec = document.getElementById("sectionName").value;
+      if (!name || !father || !roll || !cls || !sec) return alert("Fill all fields");
+      students.push({ name, father, roll, cls, sec });
+      localStorage.setItem("students", JSON.stringify(students));
+      loadStudents();
+      loadDashboard();
+    }
+
+    function deleteStudent(index) {
+      students.splice(index, 1);
+      localStorage.setItem("students", JSON.stringify(students));
+      loadStudents();
+      loadDashboard();
+    }
+
+    function loadStudents() {
+      const table = document.querySelector("#studentTable tbody");
+      const feeStudent = document.getElementById("feeStudent");
+      table.innerHTML = "";
+      feeStudent.innerHTML = "";
+      students.forEach((s, i) => {
+        table.innerHTML += `<tr><td>${i+1}</td><td>${s.name}</td><td>${s.father}</td><td>${s.roll}</td><td>${s.cls}</td><td>${s.sec}</td><td><button onclick='deleteStudent(${i})'>❌</button></td></tr>`;
+        feeStudent.innerHTML += `<option value='${s.name}'>${s.name}</option>`;
+      });
+    }
+
+    function markPaid() {
+      const student = document.getElementById("feeStudent").value;
+      const month = document.getElementById("feeMonth").value;
+      fees.push({ student, month, status: "Paid" });
+      localStorage.setItem("fees", JSON.stringify(fees));
+      loadFees();
+      loadDashboard();
+    }
+
+    function markUnpaid() {
+      const student = document.getElementById("feeStudent").value;
+      const month = document.getElementById("feeMonth").value;
+      fees.push({ student, month, status: "Unpaid" });
+      localStorage.setItem("fees", JSON.stringify(fees));
+      loadFees();
+      loadDashboard();
+    }
+
+    function deleteFee(index) {
+      fees.splice(index, 1);
+      localStorage.setItem("fees", JSON.stringify(fees));
+      loadFees();
+      loadDashboard();
+    }
+
+    function loadFees() {
+      const table = document.querySelector("#feeTable tbody");
+      table.innerHTML = "";
+      fees.forEach((f, i) => {
+        table.innerHTML += `<tr class='${f.status === "Paid" ? "paid" : "unpaid"}'><td>${f.student}</td><td>${f.month}</td><td>${f.status}</td><td><button onclick='deleteFee(${i})'>❌</button></td></tr>`;
+      });
+    }
+
+    function loadDashboard() {
+      document.getElementById("totalStudents").innerText = students.length;
+      const paidFees = fees.filter(f => f.status === "Paid").length;
+      const unpaid = (students.length * 12) - paidFees;
+      document.getElementById("totalCollected").innerText = paidFees;
+      document.getElementById("totalUnpaid").innerText = unpaid;
+    }
+
+    function exportPDF() {
+      const { jsPDF } = window.jspdf;
+      const doc = new jsPDF();
+      let y = 10;
+      doc.text("Fee Records", 10, y);
+      y += 10;
+      fees.forEach(f => {
+        doc.text(`${f.student} - ${f.month} - ${f.status}`, 10, y);
+        y += 10;
+      });
+      doc.save("fee_records.pdf");
+    }
+
+    function exportExcel() {
+      const ws = XLSX.utils.json_to_sheet(fees);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Fees");
+      XLSX.writeFile(wb, "fee_records.xlsx");
+    }
+  </script>
+</body>
+</html>
